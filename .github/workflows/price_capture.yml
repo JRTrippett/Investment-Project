@@ -1,1 +1,36 @@
+name: Daily 3:55 PM Price Capture
 
+"on":
+  schedule:
+    - cron: '55 19 * * 1-5'
+    - cron: '55 20 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install yfinance pandas pytz
+
+      - name: Run price capture
+        run: python capture_prices.py
+
+      - name: Commit updated CSV
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/prices_3pm55.csv
+          git diff --cached --quiet || git commit -m "price capture $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
