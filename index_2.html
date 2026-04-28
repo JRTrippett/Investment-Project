@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meridian Capital · MINLP Portfolio Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Outfit:wght@200;300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --ink:      #0b0e14;
+  --ink2:     #11151e;
+  --ink3:     #181d28;
+  --ink4:     #1e2535;
+  --seam:     rgba(255,255,255,0.06);
+  --seam2:    rgba(255,255,255,0.04);
+  --gold:     #c8a96e;
+  --gold2:    #e2c98a;
+  --gold-dim: rgba(200,169,110,0.12);
+  --jade:     #2dd4a0;
+  --jade-dim: rgba(45,212,160,0.1);
+  --rose:     #f87171;
+  --rose-dim: rgba(248,113,113,0.1);
+  --sky:      #60a5fa;
+  --sky-dim:  rgba(96,165,250,0.1);
+  --text:     #dde2ec;
+  --text2:    #8892a8;
+  --text3:    #4f5a72;
+  --mono:    'JetBrains Mono', monospace;
+  --serif:   'Cormorant Garamond', serif;
+  --sans:    'Outfit', sans-serif;
+  --r:        6px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;background:var(--ink)}
+body{background:var(--ink);color:var(--text);font-family:var(--sans);font-weight:300;font-size:13px;line-height:1.5;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.5}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:var(--ink2)}::-webkit-scrollbar-thumb{background:var(--ink4);border-radius:2px}
+
+/* MASTHEAD */
+.mast{position:sticky;top:0;z-index:200;background:rgba(11,14,20,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--seam)}
+.mast-i{max-width:1440px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 32px;height:56px}
+.brand{display:flex;align-items:center;gap:14px}
+.bmark{width:30px;height:30px;border:1px solid var(--gold);display:grid;place-items:center;font-family:var(--serif);font-size:15px;font-weight:600;color:var(--gold);position:relative;flex-shrink:0}
+.bmark::before{content:'';position:absolute;inset:2px;border:1px solid rgba(200,169,110,.18)}
+.bname{font-family:var(--serif);font-size:17px;font-weight:400;color:#fff;letter-spacing:.04em}
+.bname span{color:var(--gold2)}
+.bsub{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--text3);text-transform:uppercase;margin-top:1px}
+.mstats{display:flex;align-items:center;gap:28px}
+.ms{text-align:right}
+.ms .l{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
+.ms .v{font-family:var(--mono);font-size:13px;font-weight:500;color:var(--text);margin-top:1px}
+.ms .v.up{color:var(--jade)}.ms .v.gd{color:var(--gold2)}
+.lpill{display:flex;align-items:center;gap:6px;background:rgba(45,212,160,.08);border:1px solid rgba(45,212,160,.2);border-radius:20px;padding:4px 11px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--jade);text-transform:uppercase}
+.ldot{width:5px;height:5px;border-radius:50%;background:var(--jade);box-shadow:0 0 5px var(--jade);animation:blink 2s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* HERO */
+.hero{max-width:1440px;margin:0 auto;padding:48px 32px 36px;display:grid;grid-template-columns:1fr auto;gap:48px;align-items:end;border-bottom:1px solid var(--seam);position:relative;z-index:1}
+@media(max-width:900px){.hero{grid-template-columns:1fr}}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+.htitle{font-family:var(--serif);font-size:clamp(34px,4vw,56px);font-weight:300;line-height:1.06;letter-spacing:.01em;color:#fff}
+.htitle em{font-style:italic;color:var(--gold2)}
+.hdesc{margin-top:14px;max-width:540px;font-size:13px;color:var(--text2);line-height:1.75;font-weight:300}
+.hmeta{display:grid;grid-template-columns:1fr 1fr;gap:2px;min-width:310px}
+.hstat{background:var(--ink2);border:1px solid var(--seam);padding:16px 18px}
+.hstat:nth-child(1){border-radius:var(--r) 0 0 0}.hstat:nth-child(2){border-radius:0 var(--r) 0 0}
+.hstat:nth-child(3){border-radius:0 0 0 var(--r)}.hstat:nth-child(4){border-radius:0 0 var(--r) 0}
+.hstat .l{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--text3);margin-bottom:5px}
+.hstat .v{font-family:var(--mono);font-size:21px;font-weight:500;color:#fff}
+.hstat .v.gd{color:var(--gold2)}.hstat .v.jd{color:var(--jade)}
+.hstat .s{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:3px}
+
+/* CANVAS */
+.canvas{max-width:1440px;margin:0 auto;padding:24px 32px;position:relative;z-index:1;display:grid;gap:18px}
+
+/* PANELS */
+.panel{background:var(--ink2);border:1px solid var(--seam);border-radius:var(--r);overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--seam);background:rgba(255,255,255,.014)}
+.pt{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--text2)}
+.pm{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.07em}
+.pb{padding:18px}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+.gm{display:grid;grid-template-columns:3fr 2fr;gap:18px}
+.gw{display:grid;grid-template-columns:2fr 1fr;gap:18px}
+@media(max-width:1100px){.g2,.g3,.gm,.gw{grid-template-columns:1fr}}
+
+/* KPI */
+.krow{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}
+@media(max-width:1200px){.krow{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.krow{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--ink2);border:1px solid var(--seam);border-radius:var(--r);padding:16px 14px;position:relative;overflow:hidden;animation:fup .5s ease both}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:1px}
+.kpi.kg::before{background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.kpi.kj::before{background:linear-gradient(90deg,transparent,var(--jade),transparent)}
+.kpi.ks::before{background:linear-gradient(90deg,transparent,var(--sky),transparent)}
+.kpi.kr::before{background:linear-gradient(90deg,transparent,var(--rose),transparent)}
+.kl{font-family:var(--mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:var(--text3);margin-bottom:7px}
+.kv{font-family:var(--mono);font-size:24px;font-weight:500;line-height:1;color:#fff}
+.kv.gd{color:var(--gold2)}.kv.jd{color:var(--jade)}.kv.sk{color:var(--sky)}.kv.rs{color:var(--rose)}
+.ks2{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:5px}
+@keyframes fup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.kpi:nth-child(1){animation-delay:.04s}.kpi:nth-child(2){animation-delay:.08s}
+.kpi:nth-child(3){animation-delay:.12s}.kpi:nth-child(4){animation-delay:.16s}
+.kpi:nth-child(5){animation-delay:.20s}.kpi:nth-child(6){animation-delay:.24s}
+
+/* TABLES */
+table{width:100%;border-collapse:collapse}
+th{font-family:var(--mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--text3);font-weight:400;padding:8px 12px;text-align:left;border-bottom:1px solid var(--seam);white-space:nowrap;background:rgba(255,255,255,.01)}
+th.r{text-align:right}
+td{padding:8px 12px;font-family:var(--mono);font-size:11px;border-bottom:1px solid var(--seam2);white-space:nowrap}
+td.r{text-align:right}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{transition:background .1s}
+tbody tr:hover{background:rgba(255,255,255,.022)}
+.tc{display:flex;align-items:center;gap:7px}
+.tdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.tn{font-weight:500;color:#fff}
+.tu{color:var(--jade)}.td{color:var(--rose)}.tm{color:var(--text2)}.tg{color:var(--gold2)}
+
+/* BADGES */
+.badge{display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.05em;padding:2px 6px;border-radius:3px}
+.bj{background:var(--jade-dim);color:var(--jade);border:1px solid rgba(45,212,160,.2)}
+.bg2{background:var(--gold-dim);color:var(--gold2);border:1px solid rgba(200,169,110,.2)}
+.bs{background:var(--sky-dim);color:var(--sky);border:1px solid rgba(96,165,250,.2)}
+.br{background:var(--rose-dim);color:var(--rose);border:1px solid rgba(248,113,113,.2)}
+
+/* WEIGHT BAR */
+.wb-wrap{width:70px;height:4px;border-radius:2px;background:rgba(255,255,255,.06);display:inline-block;vertical-align:middle;margin-right:7px;overflow:hidden}
+.wb{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold2));transition:width 1.3s cubic-bezier(.4,0,.2,1)}
+
+/* PIPELINE */
+.pipe{display:flex;gap:0;border:1px solid var(--seam);border-radius:var(--r);overflow:hidden}
+.ps{flex:1;padding:14px 12px;text-align:center;background:var(--ink3);border-right:1px solid var(--seam);position:relative}
+.ps:last-child{border-right:none;background:rgba(45,212,160,.05)}
+.ps::after{content:'›';position:absolute;right:-8px;top:50%;transform:translateY(-50%);color:var(--gold);font-size:15px;z-index:2}
+.ps:last-child::after{display:none}
+.pn{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--gold2);line-height:1}
+.pn.fin{color:var(--jade)}
+.pl{font-family:var(--mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--text3);margin-top:4px}
+.pd{font-size:10px;color:var(--text3);margin-top:2px}
+
+/* SECTOR */
+.sr{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid var(--seam2)}
+.sr:last-child{border-bottom:none}
+.sn{font-family:var(--mono);font-size:10px;color:var(--text2);width:144px;flex-shrink:0}
+.sbw{flex:1;height:5px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden}
+.sb{height:100%;border-radius:3px}
+.sp{font-family:var(--mono);font-size:10px;color:var(--text2);width:38px;text-align:right}
+
+/* CONSTRAINTS */
+.cr{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid var(--seam2)}
+.cr:last-child{border-bottom:none}
+.cid{font-family:var(--mono);font-size:9px;letter-spacing:.09em;background:var(--gold-dim);color:var(--gold2);border:1px solid rgba(200,169,110,.2);padding:2px 5px;border-radius:3px;flex-shrink:0;margin-top:1px}
+.cb{flex:1}
+.ct{font-size:12px;font-weight:500;color:var(--text)}
+.cd{font-size:11px;color:var(--text3);margin-top:1px}
+.cpass{font-family:var(--mono);font-size:9px;background:var(--jade-dim);color:var(--jade);border:1px solid rgba(45,212,160,.2);padding:2px 7px;border-radius:3px;flex-shrink:0;margin-top:1px}
+
+/* BACKTEST SUMMARY */
+.bts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--seam);border-radius:var(--r);overflow:hidden;margin-top:14px}
+.bts-b{background:var(--ink3);padding:12px 14px}
+.bts-l{font-family:var(--mono);font-size:9px;letter-spacing:.11em;text-transform:uppercase;color:var(--text3)}
+.bts-v{font-family:var(--mono);font-size:19px;font-weight:500;margin-top:3px}
+
+/* ARCH */
+.agrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:900px){.agrid{grid-template-columns:1fr 1fr}}
+.ac{background:var(--ink3);border:1px solid var(--seam);border-radius:var(--r);padding:16px;transition:border-color .2s}
+.ac:hover{border-color:rgba(200,169,110,.3)}
+.at{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.ai{font-size:17px}.atitle{font-size:12px;font-weight:500;color:#fff}
+.ab{font-size:11px;color:var(--text3);line-height:1.6}
+.atag{display:inline-block;margin-top:7px;font-family:var(--mono);font-size:9px;letter-spacing:.09em;background:var(--sky-dim);color:var(--sky);border:1px solid rgba(96,165,250,.2);padding:2px 6px;border-radius:3px}
+
+/* FOOTER */
+footer{max-width:1440px;margin:0 auto;padding:20px 32px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--seam);position:relative;z-index:1}
+.fbrand{font-family:var(--serif);font-size:14px;color:var(--text3)}
+.fmeta{font-family:var(--mono);font-size:9px;letter-spacing:.09em;color:var(--text3);text-align:right;line-height:1.9}
+.fmeta a{color:var(--gold);text-decoration:none}
+.gline{height:1px;border:none;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:0;opacity:.35;position:relative;z-index:1}
+</style>
+</head>
+<body>
+
+<!-- MASTHEAD -->
+<div class="mast">
+  <div class="mast-i">
+    <div class="brand">
+      <div class="bmark">M</div>
+      <div>
+        <div class="bname">Meridian <span>Capital</span></div>
+        <div class="bsub">Portfolio Intelligence · OPIM 5641</div>
+      </div>
+    </div>
+    <div class="mstats">
+      <div class="ms"><div class="l">Sharpe</div><div class="v gd">1.2736</div></div>
+      <div class="ms"><div class="l">Exp. Return</div><div class="v up">+2.848%/mo</div></div>
+      <div class="ms"><div class="l">vs SPY</div><div class="v up">+1.378%</div></div>
+      <div class="ms"><div class="l">Solver</div><div class="v">BONMIN</div></div>
+      <div class="ms"><div class="l">Last Run</div><div class="v">Apr 28 2026</div></div>
+      <div class="lpill"><span class="ldot"></span>Live · 3:55 PM ET</div>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div>
+    <div class="eyebrow">Active Quantitative Strategy · Live Production Model</div>
+    <div class="htitle">Integer-Constrained<br><em>Portfolio Optimizer</em></div>
+    <p class="hdesc">A production-grade Mixed-Integer Nonlinear Programming model built on Modern Portfolio Theory. Screens 36 large-cap candidates through a two-stage RSI and return filter, solves the maximum-Sharpe allocation under 8 institutional-grade business constraints using Bonmin, and runs live daily via GitHub Actions.</p>
+  </div>
+  <div class="hmeta">
+    <div class="hstat"><div class="l">Max Sharpe</div><div class="v gd">1.2736</div><div class="s">Frontier optimal point</div></div>
+    <div class="hstat"><div class="l">Monthly Return</div><div class="v jd">2.848%</div><div class="s">≈ 34.2% annualized</div></div>
+    <div class="hstat"><div class="l">Frontier Solutions</div><div class="v">28 / 28</div><div class="s">100% feasibility</div></div>
+    <div class="hstat"><div class="l">Stocks Selected</div><div class="v gd">10</div><div class="s">From 31 qualified</div></div>
+  </div>
+</div>
+
+<div class="canvas">
+
+  <!-- KPI ROW -->
+  <div class="krow">
+    <div class="kpi kg"><div class="kl">Sharpe Ratio</div><div class="kv gd">1.2736</div><div class="ks2">Max frontier point</div></div>
+    <div class="kpi kj"><div class="kl">Expected Return</div><div class="kv jd">2.848%</div><div class="ks2">Monthly · ≈ 34% annual</div></div>
+    <div class="kpi ks"><div class="kl">Portfolio Std Dev</div><div class="kv sk">2.236%</div><div class="ks2">Variance 0.00050</div></div>
+    <div class="kpi kr"><div class="kl">SPY Baseline</div><div class="kv rs">1.470%</div><div class="ks2">Passive buy-and-hold</div></div>
+    <div class="kpi kg"><div class="kl">Selection</div><div class="kv gd">36 → 10</div><div class="ks2">Screened · optimized</div></div>
+    <div class="kpi kj"><div class="kl">Violations</div><div class="kv jd">0 / 28</div><div class="ks2">All constraints clean</div></div>
+  </div>
+
+  <!-- HOLDINGS + RIGHT COLUMN -->
+  <div class="gm">
+    <div class="panel">
+      <div class="ph"><span class="pt">Current Holdings — Max Sharpe Portfolio</span><span class="pm">Variance 0.00050 · Std Dev 2.236% · Apr 28 2026</span></div>
+      <table>
+        <thead><tr>
+          <th>Ticker</th><th>Sector</th><th>Type</th>
+          <th class="r">Weight</th><th>Position Bar</th>
+          <th class="r">Avg Ret/mo</th><th class="r">Sharpe Contrib</th><th class="r">Status</th>
+        </tr></thead>
+        <tbody id="hbody"></tbody>
+      </table>
+    </div>
+
+    <div style="display:grid;gap:18px;">
+      <div class="panel">
+        <div class="ph"><span class="pt">Screening Pipeline</span><span class="pm">RSI 30–70 · μ &gt; 0</span></div>
+        <div class="pb">
+          <div class="pipe">
+            <div class="ps"><div class="pn">36</div><div class="pl">Universe</div><div class="pd">6 per sector</div></div>
+            <div class="ps"><div class="pn" style="font-size:14px;color:var(--gold2)">RSI</div><div class="pl">Filter 1</div><div class="pd">30–70 Wilder</div></div>
+            <div class="ps"><div class="pn" style="font-size:14px;color:var(--gold2)">μ&gt;0</div><div class="pl">Filter 2</div><div class="pd">Return floor</div></div>
+            <div class="ps"><div class="pn">31</div><div class="pl">Qualified</div><div class="pd">Passed both</div></div>
+            <div class="ps"><div class="pn fin">10</div><div class="pl">Optimal</div><div class="pd">Bonmin selects</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">Sector Allocation</span><span class="pm">Max Sharpe Portfolio</span></div>
+        <div class="pb" id="secpanel"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">Sector Mix</span><span class="pm">Portfolio Weight %</span></div>
+        <div class="pb" style="display:flex;justify-content:center;"><canvas id="donut" style="max-height:170px;"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FRONTIER -->
+  <div class="gw">
+    <div class="panel">
+      <div class="ph"><span class="pt">Efficient Frontier — 28 MINLP Solutions</span><span class="pm">★ Max Sharpe · ▲ SPY Baseline</span></div>
+      <div class="pb" style="height:270px;position:relative;"><canvas id="frontier"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="pt">Frontier Data</span><span class="pm">Selected levels</span></div>
+      <table>
+        <thead><tr><th>Risk Var</th><th>Std Dev</th><th class="r">Return</th><th class="r">Sharpe</th></tr></thead>
+        <tbody id="ftbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- BACKTEST -->
+  <div class="g2">
+    <div class="panel">
+      <div class="ph"><span class="pt">Out-of-Sample Backtest · 12-Month Rolling Window</span><span class="pm">11 test periods · $1.00 start</span></div>
+      <div class="pb">
+        <div style="height:195px;position:relative;margin-bottom:14px;"><canvas id="btchart"></canvas></div>
+        <div class="bts">
+          <div class="bts-b"><div class="bts-l">Final Model</div><div class="bts-v" style="color:var(--sky)">$1.0795</div></div>
+          <div class="bts-b"><div class="bts-l">Final SPY</div><div class="bts-v" style="color:var(--jade)">$1.2200</div></div>
+          <div class="bts-b"><div class="bts-l">Months Won</div><div class="bts-v" style="color:var(--gold2)">5 / 11</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="pt">Monthly Returns — MINLP vs SPY</span><span class="pm">● = model beat SPY</span></div>
+      <table>
+        <thead><tr><th>Month</th><th class="r">MINLP</th><th class="r">SPY</th><th class="r">Δ vs SPY</th><th class="r">Cum</th></tr></thead>
+        <tbody id="bttbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CONSTRAINTS + VALIDATION -->
+  <div class="g2">
+    <div class="panel">
+      <div class="ph"><span class="pt">Constraint Architecture — 8 Business Rules</span><span class="pm">Binary Y + Continuous X · MINLP</span></div>
+      <div class="pb" id="conpanel"></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><span class="pt">Constraint Validation Report</span><span class="pm">All 28 solutions · Zero violations</span></div>
+      <div class="pb" id="valpanel"></div>
+      <div style="padding:12px 18px;border-top:1px solid var(--seam);">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:7px;">Violations Across Frontier</div>
+        <canvas id="valchart" style="height:55px;"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARCHITECTURE -->
+  <div class="panel">
+    <div class="ph"><span class="pt">Production Architecture</span><span class="pm">Bonmin · Pyomo · yfinance · GitHub Actions · Daily Live</span></div>
+    <div class="pb">
+      <div class="agrid">
+        <div class="ac"><div class="at"><span class="ai">⚡</span><span class="atitle">Live Data Pipeline</span></div><div class="ab">GitHub Actions cron fires at 3:55 PM ET Mon–Fri. Pulls 1-min bar for 36 tickers via yfinance, deduplicates, checks NYSE holidays, appends to CSV, auto-commits. Zero manual steps.</div><span class="atag">GITHUB ACTIONS · CRON</span></div>
+        <div class="ac"><div class="at"><span class="ai">🧮</span><span class="atitle">MINLP Solver — Bonmin</span></div><div class="ab">COIN-OR Bonmin via IDAES handles binary stock selection (Y) and quadratic portfolio variance simultaneously. Sweeps 28 risk levels to trace the complete efficient frontier.</div><span class="atag">BONMIN · PYOMO · IDAES</span></div>
+        <div class="ac"><div class="at"><span class="ai">🔍</span><span class="atitle">Pre-Optimization Screening</span></div><div class="ab">14-day Wilder RSI band (30–70) removes downtrends and overbought names before any MINLP call. Mean return floor eliminates chronic underperformers. Two stages, two signals.</div><span class="atag">RSI · WILDER SMMA · RETURN FLOOR</span></div>
+        <div class="ac"><div class="at"><span class="ai">📡</span><span class="atitle">Dynamic Sector Constraints</span></div><div class="ab">All sector constraints built at runtime from live yfinance metadata — no hardcoded mappings. Ticker list changes propagate automatically through every constraint.</div><span class="atag">YFINANCE · DYNAMIC SECTORS</span></div>
+        <div class="ac"><div class="at"><span class="ai">🔄</span><span class="atitle">Sliding Window Backtest</span></div><div class="ab">12-month rolling training windows across 23 months of monthly data. Each of 11 test periods uses weights from prior data only — true out-of-sample validation vs SPY.</div><span class="atag">12-MONTH WINDOW · 11 OOS PERIODS</span></div>
+        <div class="ac"><div class="at"><span class="ai">✅</span><span class="atitle">Constraint Validation Suite</span></div><div class="ab">Post-solve verification checks all 8 constraint categories across every frontier solution. Zero violations confirmed across all 28 MINLP solves — full model integrity.</div><span class="atag">8 CONSTRAINTS · 28 SOLUTIONS</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<hr class="gline">
+<footer>
+  <div class="fbrand">Meridian Capital · Portfolio Intelligence</div>
+  <div class="fmeta">
+    OPIM 5641 · Business Decision Modeling · University of Connecticut · Spring 2026<br>
+    Pyomo · Bonmin · yfinance · GitHub Actions · <a href="https://github.com/JRTrippett/Investment-Project">↗ github.com/JRTrippett/Investment-Project</a>
+  </div>
+</footer>
+
+<script>
+Chart.defaults.color='#4f5a72';
+Chart.defaults.font.family='JetBrains Mono';
+Chart.defaults.font.size=9;
+
+const H=[
+  {t:'AVGO',s:'Technology',    w:.189,r:5.866,c:.241,col:'#60a5fa'},
+  {t:'XOM', s:'Energy',        w:.261,r:1.620,c:.183,col:'#f59e0b'},
+  {t:'WMT', s:'Consumer Def.', w:.171,r:0.020,c:.121,col:'#2dd4a0'},
+  {t:'WFC', s:'Financial Svcs',w:.067,r:1.590,c:.058,col:'#a78bfa'},
+  {t:'JNJ', s:'Healthcare',    w:.062,r:2.350,c:.054,col:'#f87171'},
+  {t:'ABBV',s:'Healthcare',    w:.050,r:0.440,c:.042,col:'#fb7185'},
+  {t:'JPM', s:'Financial Svcs',w:.050,r:2.240,c:.042,col:'#c084fc'},
+  {t:'DUK', s:'Utilities',     w:.050,r:0.020,c:.038,col:'#34d399'},
+  {t:'SO',  s:'Utilities',     w:.050,r:0.020,c:.036,col:'#6ee7b7'},
+  {t:'CAT', s:'Industrials',   w:.050,r:4.398,c:.035,col:'#fbbf24'},
+];
+
+const S=[
+  {n:'Energy',         p:26.1,col:'#f59e0b'},
+  {n:'Technology',     p:18.9,col:'#60a5fa'},
+  {n:'Consumer Def.',  p:17.1,col:'#2dd4a0'},
+  {n:'Financial Svcs', p:11.7,col:'#a78bfa'},
+  {n:'Healthcare',     p:11.2,col:'#f87171'},
+  {n:'Utilities',      p:10.0,col:'#34d399'},
+  {n:'Industrials',    p:5.0, col:'#fbbf24'},
+];
+
+const RI=[.0005,.0007,.0009,.0011,.0013,.0015,.0017,.0019,.0021,.0023,.0025,.0027,.0029,.0031,.0033,.0035,.0037,.0039,.0041,.0043,.0045,.0047,.0049,.0051,.0053,.0055,.0057,.0059];
+const RE=[2.85,3.09,3.24,3.37,3.47,3.56,3.64,3.71,3.78,3.84,3.90,3.95,4.01,4.06,4.10,4.15,4.19,4.21,4.23,4.24,4.25,4.26,4.26,4.27,4.27,4.27,4.27,4.27];
+
+const BT=[
+  {m:'2025-06',tr:'Jun 24–May 25',p:5.58, s:4.83},
+  {m:'2025-07',tr:'Jul 24–Jun 25',p:2.06, s:2.61},
+  {m:'2025-08',tr:'Aug 24–Jul 25',p:-0.10,s:2.05},
+  {m:'2025-09',tr:'Sep 24–Aug 25',p:2.96, s:3.28},
+  {m:'2025-10',tr:'Oct 24–Sep 25',p:-0.61,s:2.67},
+  {m:'2025-11',tr:'Nov 24–Oct 25',p:0.21, s:0.19},
+  {m:'2025-12',tr:'Dec 24–Nov 25',p:-0.57,s:-0.22},
+  {m:'2026-01',tr:'Jan 25–Dec 25',p:-3.30,s:1.77},
+  {m:'2026-02',tr:'Feb 25–Jan 26',p:2.36, s:-0.86},
+  {m:'2026-03',tr:'Mar 25–Feb 26',p:-6.33,s:-5.20},
+  {m:'2026-04',tr:'Apr 25–Mar 26',p:6.08, s:9.61},
+];
+
+const CON=[
+  {id:'C1',t:'Fully Invested',          d:'All weights sum to exactly 1.0 — no cash drag permitted.'},
+  {id:'C2',t:'Position Floor & Cap',    d:'Linking constraint: 5% min and 40% max if stock is selected (binary Y).'},
+  {id:'C3',t:'Cardinality Maximum',     d:'No more than 10 stocks held — controls transaction cost and complexity.'},
+  {id:'C4',t:'Cardinality Minimum',     d:'At least 2 stocks required — prevents degenerate single-name portfolios.'},
+  {id:'C5',t:'Sector Cap (Dynamic)',    d:'No sector exceeds 40%. Groups built live from yfinance metadata.'},
+  {id:'C6',t:'Defensive Floor',         d:'Must hold ≥1 Healthcare or Consumer — ensures downside protection.'},
+  {id:'C7',t:'Tech → Financials Link',  d:'If any Tech stock held, must also hold Financials. Macro credit hedge.'},
+  {id:'C8',t:'XOM / CVX Exclusion',     d:'Cannot hold both — shared macro factor, no diversification benefit.'},
+];
+
+const VAL=['C1 · Sum-to-1','C2a · Floor <5%','C2b · Cap >40%','C3 · Card >10','C4 · Card <2','C5 · Sector >40%','C6 · No Defensive','C7 · Tech ∅ Fin','C8 · XOM+CVX'];
+
+// Holdings
+const hb=document.getElementById('hbody');
+H.forEach(h=>{
+  const p=(h.w*100).toFixed(1);
+  const bw=Math.round(h.w/.35*100);
+  const rc=h.r>=2?'tu':h.r>=0?'tm':'td';
+  const wb=h.w>=.20?'br':h.w>=.10?'bg2':'bj';
+  hb.insertAdjacentHTML('beforeend',`<tr>
+    <td><div class="tc"><span class="tdot" style="background:${h.col};box-shadow:0 0 5px ${h.col}44"></span><span class="tn">${h.t}</span></div></td>
+    <td class="tm">${h.s}</td>
+    <td><span class="badge bj">LONG</span></td>
+    <td class="r"><span class="badge ${wb}">${p}%</span></td>
+    <td><div style="display:flex;align-items:center;gap:6px"><span class="wb-wrap"><span class="wb" style="width:${bw}%"></span></span><span class="tm" style="font-size:10px">${p}%</span></div></td>
+    <td class="r ${rc}">${h.r>=0?'+':''}${h.r.toFixed(2)}%</td>
+    <td class="r tg">${h.c.toFixed(3)}</td>
+    <td class="r"><span class="badge bj">Active</span></td>
+  </tr>`);
+});
+
+// Sectors
+const sp=document.getElementById('secpanel');
+S.forEach(s=>{sp.insertAdjacentHTML('beforeend',`<div class="sr"><span class="sn">${s.n}</span><div class="sbw"><div class="sb" style="width:${(s.p/30*100).toFixed(0)}%;background:${s.col};opacity:.75"></div></div><span class="sp">${s.p}%</span></div>`)});
+
+// Donut
+new Chart(document.getElementById('donut').getContext('2d'),{
+  type:'doughnut',
+  data:{labels:S.map(s=>s.n),datasets:[{data:S.map(s=>s.p),backgroundColor:S.map(s=>s.col+'bb'),borderColor:S.map(s=>s.col),borderWidth:1}]},
+  options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
+    plugins:{legend:{position:'right',labels:{color:'#8892a8',font:{size:9},boxWidth:8,padding:7}}}}
+});
+
+// Frontier
+new Chart(document.getElementById('frontier').getContext('2d'),{
+  type:'scatter',
+  data:{datasets:[
+    {label:'MINLP Frontier',data:RI.map((r,i)=>({x:+(Math.sqrt(r)*100).toFixed(3),y:RE[i]})),
+      borderColor:'#c8a96e',backgroundColor:'rgba(200,169,110,0.07)',pointRadius:3,
+      pointBackgroundColor:'#c8a96e',showLine:true,tension:.35,borderWidth:1.5},
+    {label:'★ Max Sharpe',data:[{x:2.236,y:2.85}],backgroundColor:'#f87171',borderColor:'#f87171',pointRadius:10,pointStyle:'star'},
+    {label:'▲ SPY',data:[{x:3.536,y:1.47}],backgroundColor:'#2dd4a0',borderColor:'#2dd4a0',pointRadius:7,pointStyle:'triangle'}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#8892a8',font:{size:9},boxWidth:8}}},
+    scales:{
+      x:{title:{display:true,text:'Std Dev (% / month)',color:'#4f5a72',font:{size:9}},ticks:{color:'#4f5a72'},grid:{color:'rgba(255,255,255,0.04)'}},
+      y:{title:{display:true,text:'Return (% / month)',color:'#4f5a72',font:{size:9}},ticks:{color:'#4f5a72',callback:v=>v+'%'},grid:{color:'rgba(255,255,255,0.04)'}}
+    }}
+});
+
+// Frontier table
+const ftb=document.getElementById('ftbody');
+[0,1,2,4,6,10,14,20,24,27].forEach(i=>{
+  const r=RI[i],ret=RE[i],sd=(Math.sqrt(r)*100).toFixed(3),sh=(ret/parseFloat(sd)).toFixed(3),best=i===0;
+  ftb.insertAdjacentHTML('beforeend',`<tr style="${best?'background:rgba(200,169,110,.06)':''}">
+    <td class="${best?'tg':'tm'}">${r.toFixed(4)}${best?' ★':''}</td>
+    <td class="tm">${sd}%</td><td class="r tu">${ret}%</td>
+    <td class="r ${best?'tg':''}">${sh}</td></tr>`);
+});
+
+// Backtest chart
+let cm=1,cs2=1;const mc=[],sc=[];
+BT.forEach(b=>{cm*=(1+b.p/100);cs2*=(1+b.s/100);mc.push(+cm.toFixed(4));sc.push(+cs2.toFixed(4))});
+new Chart(document.getElementById('btchart').getContext('2d'),{
+  type:'line',
+  data:{labels:BT.map(b=>b.m),datasets:[
+    {label:'Active MINLP',data:mc,borderColor:'#60a5fa',backgroundColor:'rgba(96,165,250,.06)',pointRadius:3,borderWidth:2,tension:.25,fill:true},
+    {label:'S&P 500 (SPY)',data:sc,borderColor:'#2dd4a0',backgroundColor:'rgba(45,212,160,.04)',pointRadius:3,borderWidth:1.5,tension:.25,borderDash:[4,3],fill:true}
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:'#8892a8',font:{size:9},boxWidth:8}}},
+    scales:{
+      x:{ticks:{color:'#4f5a72',font:{size:8}},grid:{color:'rgba(255,255,255,0.03)'}},
+      y:{ticks:{color:'#4f5a72',callback:v=>'$'+v.toFixed(2)},grid:{color:'rgba(255,255,255,0.03)'}}
+    }}
+});
+
+// Backtest table
+let cum2=1;const btb=document.getElementById('bttbody');
+BT.forEach(b=>{
+  cum2*=(1+b.p/100);
+  const mc2=b.p>=0?'tu':'td',sc3=b.s>=0?'tu':'td',d=b.p-b.s,dc=d>=0?'tu':'td',win=b.p>b.s?' <span style="color:var(--sky)">●</span>':'';
+  btb.insertAdjacentHTML('beforeend',`<tr>
+    <td class="tg">${b.m}</td>
+    <td class="r ${mc2}">${b.p>=0?'+':''}${b.p.toFixed(2)}%${win}</td>
+    <td class="r ${sc3}">${b.s>=0?'+':''}${b.s.toFixed(2)}%</td>
+    <td class="r ${dc}">${d>=0?'+':''}${d.toFixed(2)}%</td>
+    <td class="r tm">${cum2.toFixed(4)}</td></tr>`);
+});
+
+// Constraints
+const cp=document.getElementById('conpanel');
+CON.forEach(c=>{cp.insertAdjacentHTML('beforeend',`<div class="cr"><span class="cid">${c.id}</span><div class="cb"><div class="ct">${c.t}</div><div class="cd">${c.d}</div></div><span class="cpass">✓ 0/28</span></div>`)});
+
+// Validation
+const vp=document.getElementById('valpanel');
+VAL.forEach(v=>{vp.insertAdjacentHTML('beforeend',`<div class="cr"><span class="cid" style="background:var(--jade-dim);color:var(--jade);border-color:rgba(45,212,160,.2)">✓</span><div class="cb"><div class="ct">${v}</div></div><span class="cpass">0 violations</span></div>`)});
+
+// Validation sparkline
+new Chart(document.getElementById('valchart').getContext('2d'),{
+  type:'bar',
+  data:{labels:VAL.map((_,i)=>'C'+(i+1)),datasets:[{data:[0,0,0,0,0,0,0,0,0],backgroundColor:'rgba(45,212,160,.35)',borderColor:'#2dd4a0',borderWidth:1,borderRadius:2}]},
+  options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{ticks:{color:'#4f5a72',font:{size:8}},grid:{display:false}},
+      y:{min:-0.5,max:3,ticks:{color:'#4f5a72',stepSize:1},grid:{color:'rgba(255,255,255,0.04)'}}
+    }}
+});
+
+// Animate weight bars
+document.querySelectorAll('.wb').forEach(el=>{
+  const w=el.style.width;el.style.width='0%';
+  setTimeout(()=>{el.style.width=w},400);
+});
+</script>
+</body>
+</html>
