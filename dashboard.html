@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MINLP Portfolio Optimizer — OPIM 5641</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #080c14;
+    --bg2:       #0d1420;
+    --bg3:       #111a2c;
+    --border:    rgba(255,255,255,0.07);
+    --gold:      #c9a84c;
+    --gold2:     #e8c96a;
+    --gold-dim:  rgba(201,168,76,0.15);
+    --blue:      #3b82f6;
+    --blue-dim:  rgba(59,130,246,0.12);
+    --green:     #22c55e;
+    --red:       #ef4444;
+    --text:      #e8eaf0;
+    --muted:     #6b7a99;
+    --card-r:    12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Grid noise overlay ───────────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(201,168,76,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ───────────────────────────────────────────────────── */
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 0 32px; position: relative; z-index: 1; }
+
+  /* ── Header ───────────────────────────────────────────────────── */
+  header {
+    padding: 48px 0 56px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    opacity: 0.9;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 4vw, 46px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  h1 span {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta {
+    text-align: right;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.9;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--green);
+    margin-right: 6px;
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Section headings ─────────────────────────────────────────── */
+  .section { padding: 56px 0; border-bottom: 1px solid var(--border); }
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .section-label .num {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.25);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .section-label h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.01em;
+  }
+
+  /* ── KPI strip ────────────────────────────────────────────────── */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 0;
+  }
+
+  .kpi {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--card-r);
+    padding: 24px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .kpi:hover {
+    border-color: rgba(201,168,76,0.3);
+    transform: translateY(-2px);
+  }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--gold), transparent);
+    opacity: 0.5;
+  }
+
+  .kpi-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 30px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  .kpi-value.gold { color: var(--gold2); }
+  .kpi-value.green { color: var(--green); }
+
+  .kpi-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .kpi:nth-child(1) { animation-delay: 0.05s; }
+  .kpi:nth-child(2) { animation-delay: 0.10s; }
+  .kpi:nth-child(3) { animation-delay: 0.15s; }
+  .kpi:nth-child(4) { animation-delay: 0.20s; }
+  .kpi:nth-child(5) { animation-delay: 0.25s; }
+  .kpi:nth-child(6) { animation-delay: 0.30s; }
+
+  /* ── Cards ────────────────────────────────────────────────────── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--card-r);
+    padding: 28px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+  }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+
+  @media (max-width: 900px) {
+    .two-col, .three-col { grid-template-columns: 1fr; }
+  }
+
+  /* ── Chart containers ─────────────────────────────────────────── */
+  .chart-wrap { position: relative; }
+  .chart-wrap canvas { width: 100% !important; }
+
+  /* ── Allocation bars ──────────────────────────────────────────── */
+  .alloc-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .alloc-row:last-child { border-bottom: none; }
+
+  .alloc-ticker {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--gold2);
+    width: 46px;
+    flex-shrink: 0;
+  }
+
+  .alloc-sector {
+    font-size: 10px;
+    color: var(--muted);
+    width: 130px;
+    flex-shrink: 0;
+  }
+
+  .alloc-bar-wrap {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .alloc-bar {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--gold), var(--gold2));
+    transition: width 1s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .alloc-pct {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--text);
+    width: 38px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  /* ── Pipeline ─────────────────────────────────────────────────── */
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex-wrap: wrap;
+  }
+
+  .pipe-step {
+    flex: 1;
+    min-width: 140px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 20px 18px;
+    position: relative;
+    text-align: center;
+  }
+
+  .pipe-step:first-child { border-radius: 10px 0 0 10px; }
+  .pipe-step:last-child  { border-radius: 0 10px 10px 0; }
+
+  .pipe-step::after {
+    content: '→';
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gold);
+    font-size: 14px;
+    z-index: 2;
+    background: var(--bg);
+    padding: 2px;
+  }
+  .pipe-step:last-child::after { display: none; }
+
+  .pipe-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--gold2);
+    line-height: 1;
+  }
+
+  .pipe-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  .pipe-desc {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    margin-top: 4px;
+  }
+
+  /* ── Constraint table ─────────────────────────────────────────── */
+  .constraint-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .constraint-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .constraint-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--gold2);
+    padding: 3px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .constraint-text {
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+    line-height: 1.5;
+  }
+
+  .constraint-text strong {
+    display: block;
+    color: #fff;
+    font-weight: 500;
+    font-size: 12px;
+    margin-bottom: 2px;
+  }
+
+  /* ── Backtest summary ─────────────────────────────────────────── */
+  .backtest-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 70px 70px;
+    gap: 8px;
+    align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+  }
+  .backtest-row:last-child { border-bottom: none; }
+  .backtest-row.header { color: var(--muted); font-size: 10px; letter-spacing: 0.08em; }
+
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+
+  /* ── Architecture ─────────────────────────────────────────────── */
+  .arch-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+
+  .arch-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+
+  .arch-card:hover { border-color: rgba(201,168,76,0.3); }
+
+  .arch-icon {
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+
+  .arch-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+
+  .arch-body {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .arch-tag {
+    display: inline-block;
+    margin-top: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    background: var(--gold-dim);
+    border: 1px solid rgba(201,168,76,0.2);
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+
+  /* ── Footer ───────────────────────────────────────────────────── */
+  footer {
+    padding: 32px 0;
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    border-top: 1px solid var(--border);
+  }
+
+  footer a { color: var(--gold); text-decoration: none; }
+
+  /* ── Validation badges ────────────────────────────────────────── */
+  .valid-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .valid-row:last-child { border-bottom: none; }
+  .badge-pass {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HEADER ══════════════ -->
+<header>
+  <div class="wrap">
+    <div class="header-inner">
+      <div>
+        <div class="eyebrow">OPIM 5641 · Business Decision Modeling · UConn</div>
+        <h1>Integer Portfolio<br><span>Optimizer</span></h1>
+        <p style="margin-top:14px; font-size:13px; color:var(--muted); max-width:520px; line-height:1.7;">
+          A production-grade MINLP model built on Modern Portfolio Theory — screening 36 candidates,
+          enforcing 8 business constraints, and automatically selecting the maximum-Sharpe portfolio
+          via Bonmin solver with live market data.
+        </p>
+      </div>
+      <div class="header-meta">
+        <div><span class="status-dot"></span>LIVE — GitHub Actions 3:55 PM ET</div>
+        <div>SOLVER · BONMIN (COIN-OR MINLP)</div>
+        <div>DATA · Yahoo Finance · 2Y Monthly</div>
+        <div>LAST RUN · April 28, 2026</div>
+        <div style="margin-top:8px;">
+          <a href="https://github.com/JRTrippett/Investment-Project"
+             style="color:var(--gold); font-size:10px; letter-spacing:0.1em;">
+            ↗ github.com/JRTrippett/Investment-Project
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════ KPI STRIP ══════════════ -->
+<div class="section">
+  <div class="wrap">
+    <div class="section-label">
+      <span class="num">01</span>
+      <h2>Model Performance Summary</h2>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi">
+        <div class="kpi-label">Sharpe Ratio</div>
+        <div class="kpi-value gold">1.2736</div>
+        <div class="kpi-sub">Max Sharpe frontier point</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Expected Monthly Return</div>
+        <div class="kpi-value green">2.848%</div>
+        <div class="kpi-sub">~34.2% annualized</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Portfolio Std Dev</div>
+        <div class="kpi-value">2.236%</div>
+        <div class="kpi-sub">Monthly · variance 0.00050</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">SPY Baseline Return</div>
+        <div class="kpi-value">1.47%</div>
+        <div class="kpi-sub">Passive S&P 500 buy-and-hold</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Stocks Selected</div>
+        <div class="kpi-value gold">10</div>
+        <div class="kpi-sub">From 31 qualified candidates</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Frontier Solutions</div>
+        <div class="kpi-value">28/28</div>
+        <div class="kpi-sub">100% feasibility rate</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ PIPELINE ══════════════ -->
+<div class="section">
+  <div class="wrap">
+    <div class="section-label">
+      <span class="num">02</span>
+      <h2>Two-Stage Selection Pipeline</h2>
+    </div>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-num">36</div>
+        <div class="pipe-label">Candidates</div>
+        <div class="pipe-desc">6 per sector · 8 sectors · large-cap liquid names</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num" style="color:#e88c3a;">RSI</div>
+        <div class="pipe-label">Screen 1</div>
+        <div class="pipe-desc">14-day Wilder RSI 30–70 · removes downtrends &amp; overbought</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num" style="color:#e88c3a;">μ&gt;0</div>
+        <div class="pipe-label">Screen 2</div>
+        <div class="pipe-desc">Mean monthly return &gt; 0 · removes chronic underperformers</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num">31</div>
+        <div class="pipe-label">Qualified Pool</div>
+        <div class="pipe-desc">Passed both screening criteria · fed to MINLP solver</div>
+      </div>
+      <div class="pipe-step">
+        <div class="pipe-num" style="color:var(--gold2);">10</div>
+        <div class="pipe-label">Final Portfolio</div>
+        <div class="pipe-desc">Bonmin selects optimal weights · max Sharpe ratio</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ FRONTIER + ALLOCATION ══════════════ -->
+<div class="section">
+  <div class="wrap">
+    <div class="section-label">
+      <span class="num">03</span>
+      <h2>Efficient Frontier &amp; Max Sharpe Allocation</h2>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Efficient Frontier — 28 MINLP Solutions</div>
+        <div class="chart-wrap" style="height:280px;">
+          <canvas id="frontierChart"></canvas>
+        </div>
+        <p style="font-size:11px; color:var(--muted); margin-top:14px; line-height:1.6;">
+          ★ marks the maximum Sharpe ratio point (risk=0.00050, return=2.85%).
+          The frontier is computed by sweeping a risk ceiling parameter through 28 levels —
+          Bonmin solves each MINLP exactly. 100% feasibility rate across all risk levels.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-title">Max Sharpe Portfolio — Optimal Allocation</div>
+        <div id="allocList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ BACKTEST ══════════════ -->
+<div class="section">
+  <div class="wrap">
+    <div class="section-label">
+      <span class="num">04</span>
+      <h2>Out-of-Sample Backtest — Monthly Sliding Window</h2>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Cumulative Growth vs S&amp;P 500 ($1.00 Starting)</div>
+        <div class="chart-wrap" style="height:260px;">
+          <canvas id="backtestChart"></canvas>
+        </div>
+        <p style="font-size:11px; color:var(--muted); margin-top:14px; line-height:1.6;">
+          12-month rolling training window, 11 out-of-sample test months.
+          Each month the model re-optimizes entirely from the prior 12 months of data —
+          weights determined before the test period begins.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-title">Monthly Return — MINLP vs SPY</div>
+        <div class="backtest-row header">
+          <div>Month</div><div>Train window</div><div>MINLP</div><div>SPY</div>
+        </div>
+        <div id="backtestTable"></div>
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border); display:flex; justify-content:space-between; font-family:'DM Mono',monospace; font-size:11px;">
+          <div>
+            <div style="color:var(--muted); font-size:10px; margin-bottom:2px;">FINAL MODEL</div>
+            <div style="color:var(--gold2); font-size:18px; font-weight:500;">$1.0795</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="color:var(--muted); font-size:10px; margin-bottom:2px;">FINAL SPY</div>
+            <div style="color:var(--green); font-size:18px; font-weight:500;">$1.2200</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ CONSTRAINTS ══════════════ -->
+<div class="section">
+  <div class="wrap">
+    <div class="section-label">
+      <span class="num">05</span>
+      <h2>Constraint Architecture — 8 Business Rules</h2>
+    </div>
+    <div class="constraint-grid">
+      <div class="constraint-item">
+        <span class="constraint-badge">C1</span>
+        <div class="constraint-text"><strong>Fully Invested</strong>All weights sum to exactly 1.0 — no cash drag permitted.</div>
+      </div>
+      <div class="constraint-item">
+        <span class="constraint-badge">C2</span>
+        <div class="constraint-text"><strong>Position Floor &amp; Cap (Linking)</strong>Binary Y + continuous X: 5% min if selected, 40% max. Enforced via MINLP linking constraints.</div>
+      </div>
+      <div class="constraint-item">
+        <span class="constraint-badge">C3</span>
+        <div class="constraint-text"><strong>Cardinality Maximum</strong>No more than 10 stocks held simultaneously — controls transaction cost and management overhead.</div>
+      </div>
+      <div class="constraint-item">
+        <span class="constraint-badge">C4</span>
+        <div class="constraint-text"><strong>Cardinality Minimum</strong>At least 2 stocks required — prevents degenerate single-stock "portfolios".</div>
+      </div>
+      <div class="constraint-item">
+        <span class="constraint-badge">C5</span>
+        <div class="constraint-text"><strong>Sector Cap (Dynamic)</strong>No single sector exceeds 40%. Sector groups built live from yfinance metadata — no hardcoding.</div>
+      </div>
+      <div class="constraint-item">
+        <span class="constraint-badge">C6</span>
+        <div class="constraint-text"><strong>Defensive Floor</strong>Must hold ≥1 Healthcare or Consumer Defensive stock. Ensures downside protection in any allocation.</div>
+      </div>
+      <div class="constraint-item">
+        <span class="constraint-badge">C7</span>
+        <div class="constraint-text"><strong>Tech → Financials Contingency</strong>If any Technology stock is held, must also hold a Financials stock. Macro credit-cycle hedge.</div>
+      </div>
+      <div class="constraint-item">
+        <span class="constraint-badge">C8</span>
+        <div class="constraint-text"><strong>XOM / CVX Mutual Exclusion</strong>Cannot hold both simultaneously — they share the same macro factor exposure with no diversification benefit.</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:20px;">
+      <div class="card-title">Constraint Validation — All 28 Frontier Solutions</div>
+      <div class="valid-row"><span>C1 · Sum-to-1 violations</span><span class="badge-pass">0 / 28 ✓</span></div>
+      <div class="valid-row"><span>C2a · Floor (&lt;5%) violations</span><span class="badge-pass">0 / 28 ✓</span></div>
+      <div class="valid-row"><span>C2b · Cap (&gt;40%) violations</span><span class="badge-pass">0 / 28 ✓</span></div>
+      <div class="valid-row"><span>C3 · Cardinality &gt;10 violations</span><span class="badge-pass">0 / 28 ✓</span></div>
+      <div class="valid-row"><span>C4 · Cardinality &lt;2 violations</span><span class="badge-pass">0 / 28 ✓</span></div>
+      <div class="valid-row"><span>C5 · Sector &gt;40% violations</span><span class="badge-pass">0 / 28 ✓</span></div>
+      <div class="valid-row"><span>C6 · No defensive stock held</span><span class="badge-pass">0 / 28 ✓</span></div>
+      <div class="valid-row"><span>C7 · Tech without Financials</span><span class="badge-pass">0 / 28 ✓</span></div>
+      <div class="valid-row"><span>C8 · XOM + CVX both held</span><span class="badge-pass">0 / 28 ✓</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ ARCHITECTURE ══════════════ -->
+<div class="section">
+  <div class="wrap">
+    <div class="section-label">
+      <span class="num">06</span>
+      <h2>Production Architecture</h2>
+    </div>
+    <div class="arch-grid">
+      <div class="arch-card">
+        <div class="arch-icon">⚡</div>
+        <div class="arch-title">Live Data Pipeline</div>
+        <div class="arch-body">GitHub Actions cron fires at 3:55 PM ET (Mon–Fri). Captures 1-min bar for 36 tickers via yfinance, deduplicates, checks holidays, appends to CSV, and auto-commits — zero manual steps.</div>
+        <span class="arch-tag">GITHUB ACTIONS · CRON</span>
+      </div>
+      <div class="arch-card">
+        <div class="arch-icon">🧮</div>
+        <div class="arch-title">MINLP Solver</div>
+        <div class="arch-body">Bonmin (COIN-OR) via IDAES. Mixed-integer nonlinear programming handles binary stock selection and quadratic risk simultaneously. Sweeps 28 risk levels to trace the complete frontier.</div>
+        <span class="arch-tag">BONMIN · PYOMO · IDAES</span>
+      </div>
+      <div class="arch-card">
+        <div class="arch-icon">📡</div>
+        <div class="arch-title">Dynamic Constraints</div>
+        <div class="arch-body">All sector constraints built from live yfinance metadata at runtime — no hardcoded mappings. Add or remove a ticker and the constraint architecture updates automatically.</div>
+        <span class="arch-tag">YFINANCE · DYNAMIC SECTORS</span>
+      </div>
+      <div class="arch-card">
+        <div class="arch-icon">🔍</div>
+        <div class="arch-title">Pre-Optimization Screening</div>
+        <div class="arch-body">Two-stage filter before any solve: 14-day Wilder RSI (30–70 band) removes trend-failing and overbought names; mean return floor removes chronic underperformers.</div>
+        <span class="arch-tag">RSI · RETURN FILTER</span>
+      </div>
+      <div class="arch-card">
+        <div class="arch-icon">🔄</div>
+        <div class="arch-title">Sliding Window Backtest</div>
+        <div class="arch-body">12-month rolling training windows, 11 out-of-sample test periods. Each window re-runs the full MINLP to pick next-month weights from prior data — true out-of-sample validation.</div>
+        <span class="arch-tag">12-MONTH WINDOW · 11 PERIODS</span>
+      </div>
+      <div class="arch-card">
+        <div class="arch-icon">✅</div>
+        <div class="arch-title">Constraint Validation</div>
+        <div class="arch-body">Post-solve verification suite checks all 8 constraint categories across every frontier solution. Zero violations reported across all 28 MINLP solutions.</div>
+        <span class="arch-tag">8 CONSTRAINTS · 28 SOLUTIONS</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer>
+  <div class="wrap">
+    <div>OPIM 5641 · Business Decision Modeling · University of Connecticut · Spring 2026</div>
+    <div style="margin-top:6px;">
+      Built with Pyomo · Bonmin · yfinance · GitHub Actions ·
+      <a href="https://github.com/JRTrippett/Investment-Project">↗ View Source</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────────────────
+const frontier = {
+  risks:   [0.0005,0.0007,0.0009,0.0011,0.0013,0.0015,0.0017,0.0019,0.0021,0.0023,
+            0.0025,0.0027,0.0029,0.0031,0.0033,0.0035,0.0037,0.0039,0.0041,0.0043,
+            0.0045,0.0047,0.0049,0.0051,0.0053,0.0055,0.0057,0.0059],
+  returns: [2.85,3.09,3.24,3.37,3.47,3.56,3.64,3.71,3.78,3.84,
+            3.90,3.95,4.01,4.06,4.10,4.15,4.19,4.21,4.23,4.24,
+            4.25,4.26,4.26,4.27,4.27,4.27,4.27,4.27]
+};
+
+const allocation = [
+  { ticker:'AVGO', sector:'Technology',       weight:0.189 },
+  { ticker:'XOM',  sector:'Energy',           weight:0.261 },
+  { ticker:'WMT',  sector:'Consumer Def.',    weight:0.171 },
+  { ticker:'WFC',  sector:'Financials',       weight:0.067 },
+  { ticker:'JNJ',  sector:'Healthcare',       weight:0.062 },
+  { ticker:'ABBV', sector:'Healthcare',       weight:0.050 },
+  { ticker:'JPM',  sector:'Financials',       weight:0.050 },
+  { ticker:'DUK',  sector:'Utilities',        weight:0.050 },
+  { ticker:'SO',   sector:'Utilities',        weight:0.050 },
+  { ticker:'CAT',  sector:'Industrials',      weight:0.050 },
+];
+
+const backtest = [
+  { month:'2025-06', train:'Jun 24–May 25', minlp:+5.58, spy:+4.83 },
+  { month:'2025-07', train:'Jul 24–Jun 25', minlp:+2.06, spy:+2.61 },
+  { month:'2025-08', train:'Aug 24–Jul 25', minlp:-0.10, spy:+2.05 },
+  { month:'2025-09', train:'Sep 24–Aug 25', minlp:+2.96, spy:+3.28 },
+  { month:'2025-10', train:'Oct 24–Sep 25', minlp:-0.61, spy:+2.67 },
+  { month:'2025-11', train:'Nov 24–Oct 25', minlp:+0.21, spy:+0.19 },
+  { month:'2025-12', train:'Dec 24–Nov 25', minlp:-0.57, spy:-0.22 },
+  { month:'2026-01', train:'Jan 25–Dec 25', minlp:-3.30, spy:+1.77 },
+  { month:'2026-02', train:'Feb 25–Jan 26', minlp:+2.36, spy:-0.86 },
+  { month:'2026-03', train:'Mar 25–Feb 26', minlp:-6.33, spy:-5.20 },
+  { month:'2026-04', train:'Apr 25–Mar 26', minlp:+6.08, spy:+9.61 },
+];
+
+// ── Frontier chart ────────────────────────────────────────────────────────────
+const fCtx = document.getElementById('frontierChart').getContext('2d');
+new Chart(fCtx, {
+  type: 'scatter',
+  data: {
+    datasets: [
+      {
+        label: 'MINLP Frontier',
+        data: frontier.risks.map((r,i)=>({x:(Math.sqrt(r)*100).toFixed(3)*1, y:frontier.returns[i]})),
+        borderColor: '#c9a84c',
+        backgroundColor: 'rgba(201,168,76,0.15)',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        showLine: true,
+        tension: 0.3,
+        borderWidth: 2,
+      },
+      {
+        label: 'Max Sharpe ★',
+        data: [{x:(Math.sqrt(0.0005)*100).toFixed(3)*1, y:2.85}],
+        backgroundColor: '#ef4444',
+        borderColor: '#ef4444',
+        pointRadius: 10,
+        pointStyle: 'star',
+      },
+      {
+        label: 'SPY Baseline',
+        data: [{x:(Math.sqrt(0.00125)*100).toFixed(3)*1, y:1.47}],
+        backgroundColor: '#22c55e',
+        borderColor: '#22c55e',
+        pointRadius: 7,
+        pointStyle: 'triangle',
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color:'#6b7a99', font:{size:10, family:'DM Mono'} } } },
+    scales: {
+      x: {
+        title: { display:true, text:'Std Dev (% / month)', color:'#6b7a99', font:{size:10} },
+        ticks: { color:'#6b7a99', font:{size:9} },
+        grid:  { color:'rgba(255,255,255,0.04)' }
+      },
+      y: {
+        title: { display:true, text:'Expected Return (% / month)', color:'#6b7a99', font:{size:10} },
+        ticks: { color:'#6b7a99', font:{size:9}, callback: v => v+'%' },
+        grid:  { color:'rgba(255,255,255,0.04)' }
+      }
+    }
+  }
+});
+
+// ── Allocation bars ───────────────────────────────────────────────────────────
+const allocList = document.getElementById('allocList');
+allocation.forEach(a => {
+  const row = document.createElement('div');
+  row.className = 'alloc-row';
+  row.innerHTML = `
+    <span class="alloc-ticker">${a.ticker}</span>
+    <span class="alloc-sector">${a.sector}</span>
+    <div class="alloc-bar-wrap">
+      <div class="alloc-bar" style="width:${(a.weight/0.35*100).toFixed(1)}%"></div>
+    </div>
+    <span class="alloc-pct">${(a.weight*100).toFixed(1)}%</span>
+  `;
+  allocList.appendChild(row);
+});
+
+// ── Backtest chart ────────────────────────────────────────────────────────────
+let cumModel = 1.0, cumSpy = 1.0;
+const modelCum = [], spyCum = [];
+backtest.forEach(b => {
+  cumModel *= (1 + b.minlp/100);
+  cumSpy   *= (1 + b.spy/100);
+  modelCum.push(cumModel.toFixed(4)*1);
+  spyCum.push(cumSpy.toFixed(4)*1);
+});
+
+const bCtx = document.getElementById('backtestChart').getContext('2d');
+new Chart(bCtx, {
+  type: 'line',
+  data: {
+    labels: backtest.map(b => b.month),
+    datasets: [
+      {
+        label: 'Active MINLP',
+        data: modelCum,
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.08)',
+        pointRadius: 4, borderWidth: 2.5, tension: 0.2, fill: true,
+      },
+      {
+        label: 'S&P 500 (SPY)',
+        data: spyCum,
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.06)',
+        pointRadius: 4, borderWidth: 2.5, tension: 0.2,
+        borderDash: [5,4], fill: true,
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color:'#6b7a99', font:{size:10, family:'DM Mono'} } } },
+    scales: {
+      x: { ticks: { color:'#6b7a99', font:{size:9} }, grid: { color:'rgba(255,255,255,0.04)' } },
+      y: {
+        ticks: { color:'#6b7a99', font:{size:9}, callback: v => '$'+v.toFixed(2) },
+        grid:  { color:'rgba(255,255,255,0.04)' }
+      }
+    }
+  }
+});
+
+// ── Backtest table ────────────────────────────────────────────────────────────
+const tbl = document.getElementById('backtestTable');
+backtest.forEach(b => {
+  const row = document.createElement('div');
+  row.className = 'backtest-row';
+  const mc = b.minlp >= 0 ? 'pos' : 'neg';
+  const sc = b.spy   >= 0 ? 'pos' : 'neg';
+  const win = (b.minlp > b.spy) ? '●' : '';
+  row.innerHTML = `
+    <div>${b.month}</div>
+    <div style="color:var(--muted);font-size:10px;">${b.train}</div>
+    <div class="${mc}">${b.minlp>0?'+':''}${b.minlp.toFixed(2)}% ${win}</div>
+    <div class="${sc}">${b.spy>0?'+':''}${b.spy.toFixed(2)}%</div>
+  `;
+  tbl.appendChild(row);
+});
+</script>
+</body>
+</html>
